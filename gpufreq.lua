@@ -16,6 +16,10 @@ function get_sys_value(variable)
     return val
 end
 
+function bytes_to_mib_str(b)
+    return string.format("%.2f", b / 1024 / 1024)
+end
+
 local freqgetter = {}
 
 function show_gpu_freq(card)
@@ -78,8 +82,14 @@ function freqgetter:amd(card)
     local cur, max = amd_pp_consumer(scuffed)
     local core = {["cur"] = cur, ["max"] = max}
     local cur_mem, max_mem = amd_pp_consumer(scuffedmem)
-    local mem = {["cur"] = cur_mem, ["max"] = max_mem}
-    return {["core"] = core, ["mem"] = mem}
+    local mem = {["cur"] = cur_mem, ["max"] = max_mem,
+                 ["used"] = tonumber(get_sys_value(card_path(card) .. "device/mem_info_vram_used")),
+                 ["total"] = tonumber(get_sys_value(card_path(card) .. "device/mem_info_vram_total"))}
+    local link = {
+        ["speed"] = get_sys_value(card_path(card) .. "device/current_link_speed"),
+        ["width"] = get_sys_value(card_path(card) .. "device/current_link_width")
+    }
+    return {["core"] = core, ["mem"] = mem, ["link"] = link}
 end
 
 --[[ YOU ARE NOW LEAVING THE CURSED AMD ZONE ]]--
@@ -94,7 +104,13 @@ function display_gpu_freq(freqs)
     end
     if freqs["mem"] ~= nil then
         msg = msg .. "\n"
-        msg = msg .. "Memory: " .. freqs["mem"]["cur"] .. "/" .. freqs["mem"]["max"] .. " MHz"
+        msg = msg .. "Memory: " .. freqs["mem"]["cur"] .. "/" .. freqs["mem"]["max"] .. " MHz\n"
+        msg = msg .. "Memory Usage: " .. bytes_to_mib_str(freqs["mem"]["used"]) .. "/"
+        msg = msg .. bytes_to_mib_str(freqs["mem"]["total"]) .. " MiB"
+    end
+    if freqs["link"] ~= nil then
+        msg = msg .. "\n"
+        msg = msg .. "Link: " .. freqs["link"]["speed"] .. " x" .. freqs["link"]["width"]
     end
     mp.osd_message(msg)
 end
